@@ -35,6 +35,7 @@
  */
 
 #include "Moodlight.h"
+#include "Colour.h"
 
 /** Buffer to hold the previously generated HID report, for comparison purposes inside the HID class driver. */
 static uint8_t PrevHIDReportBuffer[GENERIC_REPORT_SIZE];
@@ -77,6 +78,9 @@ int main(void)
 	SetupHardware();
 
 	LEDs_SetAllLEDs(LEDMASK_USB_NOTREADY);
+
+    colour_init();
+
 	sei();
 
 	for (;;)
@@ -100,10 +104,6 @@ void SetupHardware(void)
 	/* Hardware Initialization */
 	LEDs_Init();
 	USB_Init();
-        DDRB |= (1 << PB7);
-        DDRC |= (1 << PC6) | (1 << PC5);
-        TCCR1A |= (1<<COM1A1) | (1<<COM1B1) | (1<<COM1C1) | (1<<WGM11) | (1<<WGM10); // 10 bit fast-pwm
-        TCCR1B |= (1<<WGM12) | (0<<CS12) | (0<<CS11) | (1<<CS10); // clock/1 prescaler
 }
 
 /** Event handler for the library USB Connection event. */
@@ -167,150 +167,6 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDIn
 	return true;
 }
 
-/**
- * Set member variables for red, green, and blue light.
- * \param[in] r red
- * \param[in] g green
- * \param[in] b blue
- */
-void setRGB( uint8_t r, uint8_t g, uint8_t b )
-{
-    red = r * 4;
-    green = g * 4;
-    blue = b * 4;
-}
-
-/**
- * Switch on light.
- */
-void on()
-{
-    OCR1A = blue;
-    OCR1B = green;
-    OCR1C = red;        
-}
-
-/**
- * Switch off light.
- */
-void off()
-{
-    OCR1A = 0;
-    OCR1B = 0;
-    OCR1C = 0;     
-}
-
-/**
- * Blink (1 second on, 1 second off).
- * \param[in] n number of times to blink
- */
-void blink( uint8_t n )
-{
-    for( uint8_t i = 0; i < n; i++ )
-    {
-        on();      
-        _delay_ms(1000);
-        off();
-        _delay_ms(1000);
-    }
-}
-/**
- * Advanced fading taking into account how the colour is distributed.
- * e.g. ff 00 33 fades evenly from black to pink.
- * Replaces \ref fadeSimple().
- *
- * \param[in] n number of times to fade in and out
- */
-void fade( uint8_t n )
-{
-    // use relative step sizes for each colour channel
-    int32_t rStep, gStep, bStep, scale;
-    scale = 48 * 4;
-    rStep = red / scale;
-    gStep = green / scale;
-    bStep = blue / scale;
-
-    // repeat n times
-    for( uint8_t i = 0; i < n; i++ )
-    {
-        // fade in to colour maximum
-        while( OCR1A < blue || OCR1B < green || OCR1C < red )
-        {
-            if( OCR1A < blue )
-                OCR1A += bStep;
-            if( OCR1B < green )
-                OCR1B += gStep; 
-            if( OCR1C < red )
-                OCR1C += rStep; 
-            _delay_ms(10);
-        }
-        // fade out to black
-        while( OCR1A > bStep || OCR1B > gStep || OCR1C > rStep )
-        {
-            if( OCR1A >= bStep )
-                OCR1A -= bStep;
-            if( OCR1B >= gStep )
-                OCR1B -= gStep;
-            if( OCR1C >= rStep )
-                OCR1C -= rStep;
-            _delay_ms(10);
-        }
-    }
-    off();
-}
-
-/**
- * Simple fading (constant increase/decrease of values, independent of colour distribution).
- * Looks good, if all channels are equal or zero, but e.g. for ff 00 33, red and blue fade up 
- * simultaneously until 33 00 33 is reached; afterwards, only red is increased up to ff 00 33.
- *
- * \param[in] n number of times to fade in and out
- */
-void fadeSimple( uint8_t n )
-{
-    for( uint8_t i = 0; i < n; i++ )
-    {
-        while( OCR1A < blue || OCR1B < green || OCR1C < red )
-        {
-            if( OCR1A < blue )
-                OCR1A++;
-            if( OCR1B < green )
-                OCR1B++; 
-            if( OCR1C < red )
-                OCR1C++; 
-            _delay_ms(10);
-        }
-        while( OCR1A > 0 || OCR1B > 0 || OCR1C > 0 )
-        {
-            if( OCR1A > 0 )
-                OCR1A--;
-            if( OCR1B > 0 )
-                OCR1B--;
-            if( OCR1C > 0 )
-                OCR1C--;
-            _delay_ms(10);
-        }
-    }
-}
-
-void demo( uint8_t n )
-{
-    for( uint8_t i = 0; i < n; i++)
-    {
-	setRGB( 0xff, 0, 0 );
-        fade(1);
-        setRGB( 0xff, 0xff, 0 );
-        fade(1);
-        setRGB( 0, 0xff, 0 );
-        fade(1);
-        setRGB( 0, 0xff, 0xff );
-        fade(1);
-        setRGB( 0, 0, 0xff );
-        fade(1);
-        setRGB( 0xff, 0, 0xff );
-        fade(1);
-    }
-}
 
 /** HID class driver callback function for the processing of HID reports from the host.
  *
@@ -334,26 +190,16 @@ void CALLBACK_HID_Device_ProcessHIDReport(USB_ClassInfo_HID_Device_t* const HIDI
     HIDReportEcho.ReportSize = ReportSize;
     memcpy(HIDReportEcho.ReportData, ReportData, ReportSize);
 
-    uint8_t n = HIDReportEcho.ReportData[4];
-    setRGB(HIDReportEcho.ReportData[0],HIDReportEcho.ReportData[1],HIDReportEcho.ReportData[2]);
-    switch( HIDReportEcho.ReportData[3] )
-    {
+    switch(HIDReportEcho.ReportData[0]) {
         case 0:
-            on();
-            for( uint8_t i = 0; i < n; i++ )
-            {
-                _delay_ms( 1000 );
-            }
-            off();
+            set_rgb((struct rgb_colour){HIDReportEcho.ReportData[1],
+                                        HIDReportEcho.ReportData[2],
+                                        HIDReportEcho.ReportData[3]});
             break;
         case 1:
-            blink( n );
+            fade_rgb((struct rgb_colour){HIDReportEcho.ReportData[1],
+                                         HIDReportEcho.ReportData[2],
+                                         HIDReportEcho.ReportData[3]}, 1000);
             break;
-        case 2:
-            fade( n );
-            break;
-        case 0xff:
-            demo( n );
-            break;
-    }        
+    }
 }
