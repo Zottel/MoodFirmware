@@ -34,14 +34,17 @@ const uint16_t pwmtable_16[256] PROGMEM =
     55108, 57548, 60096, 62757, 65535
 };
 
+// Currently used colour
 struct rgb_colour rgb_current = {0,0,0};
-struct rgb_colour rgb_fade_to;
-struct {int8_t red, green, blue} rgb_fade_step;
 
-uint16_t duration;
+// Fading parameters
+struct rgb_colour rgb_fade_to, rgb_fade_from;
+uint16_t duration, duration_done;
 
+// State machine
 enum colour_state state = OFF;
 
+// Translate rgb values to logarithmic 16bit scale - and invert
 void hardware_rgb(void) {
     OCR1A = ~(pgm_read_word(&pwmtable_16[rgb_current.blue]));
     OCR1B = ~(pgm_read_word(&pwmtable_16[rgb_current.green]));
@@ -77,18 +80,11 @@ void colour_init() {
 }
 
 ISR (TIMER1_OVF_vect) {
-	static uint8_t microticks = 0;
-
-	// Approx. every 8ms
-	if(++microticks == 2) {
-		microticks = 0;
-		tick();
-	}
+	tick();
 }
 
-// Call once every 10 ms - circa
+// Call once every 8 ms - circa
 void tick() {
-	bool modified = false;
 	switch(state) {
 		case OFF:
 		case IDLE_RGB:
@@ -96,27 +92,32 @@ void tick() {
 			return;
 
 		case FADE_RGB:
-			if(abs(rgb_fade_to.red - rgb_current.red) > abs(rgb_fade_step.red))
+			duration_done += 4;
+			if(duration_done > duration)
 			{
-				rgb_current.red += rgb_fade_step.red;
-				modified = true;
-			}
-
-			if(abs(rgb_fade_to.green - rgb_current.green) > abs(rgb_fade_step.green))
-			{
-				rgb_current.green += rgb_fade_step.green;
-				modified = true;
-			}
-
-			if(abs(rgb_fade_to.blue - rgb_current.blue) > abs(rgb_fade_step.blue))
-			{
-				rgb_current.blue += rgb_fade_step.blue;
-				modified = true;
-			}
-
-			if(!modified) {
-				state = IDLE_RGB;
+				// Get rid of rounding errors
 				rgb_current = rgb_fade_to;
+
+				state = IDLE_RGB;
+			} else {
+				rgb_current.red = (int32_t) rgb_fade_from.red +
+				                            ((((int32_t) rgb_fade_to.red -
+				                              (int32_t) rgb_fade_from.red)
+				                              * (int32_t) duration_done)
+				                            / (int32_t) duration);
+
+				rgb_current.green = (int32_t) rgb_fade_from.green +
+				                              ((((int32_t) rgb_fade_to.green -
+				                                (int32_t) rgb_fade_from.green)
+				                                * (int32_t) duration_done)
+				                              / (int32_t) duration);
+
+				rgb_current.blue = (int32_t) rgb_fade_from.blue +
+				                             ((((int32_t) rgb_fade_to.blue -
+				                               (int32_t) rgb_fade_from.blue)
+				                               * (int32_t) duration_done)
+				                             / (int32_t) duration);
+
 			}
 
 			hardware_rgb();
@@ -132,21 +133,26 @@ enum colour_state get_state() {
 }
 
 void set_rgb(struct rgb_colour to) {
+	state = IDLE_RGB;
+
 	rgb_current = to;
 
 	hardware_rgb();
-
-	state = IDLE_RGB;
 }
 
-void fade_rgb(struct rgb_colour to, uint16_t duration) {
+void fade_rgb(struct rgb_colour to, uint16_t duration_in) {
+	state = FADE_RGB;
+
+	rgb_fade_from = rgb_current;
+
 	rgb_fade_to = to;
 
-	rgb_fade_step.red = (to.red - rgb_current.red) / (duration / 10);
-	rgb_fade_step.green = (to.green - rgb_current.green) / (duration / 10);
-	rgb_fade_step.blue = (to.blue - rgb_current.blue) / (duration / 10);
+	// Prevent duration overflow
+	if(duration_in > (0xffff - 8))
+		duration_in = 0xffff - 8;
 
-	state = FADE_RGB;
+	duration = duration_in;
+	duration_done = 0;
 }
 
 //To be implemented

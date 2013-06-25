@@ -192,14 +192,18 @@ void CALLBACK_HID_Device_ProcessHIDReport(USB_ClassInfo_HID_Device_t* const HIDI
 
     switch(HIDReportEcho.ReportData[0]) {
         case 0:
+            if(ReportSize < 4) return;
             set_rgb((struct rgb_colour){HIDReportEcho.ReportData[1],
                                         HIDReportEcho.ReportData[2],
                                         HIDReportEcho.ReportData[3]});
             break;
         case 1:
+            if(ReportSize < 6) return;
             fade_rgb((struct rgb_colour){HIDReportEcho.ReportData[1],
                                          HIDReportEcho.ReportData[2],
-                                         HIDReportEcho.ReportData[3]}, 1000);
+                                         HIDReportEcho.ReportData[3]},
+                     ((uint16_t) HIDReportEcho.ReportData[4] << 8 |
+                      (uint16_t) HIDReportEcho.ReportData[5]));
             break;
     }
 }
