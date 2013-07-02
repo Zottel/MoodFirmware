@@ -14,16 +14,20 @@ struct hsv_colour {
 // State machine to make Colour library work asynchronously
 enum colour_state {
 	OFF,
-	IDLE_RGB,
+	IDLE,
+	WAIT,
 	FADE_RGB,
-	IDLE_HSV,
 	FADE_HSV
 };
 
 void colour_init(void);
 
-// Call once every 10 ms
+// Called once every 8 ms
 void tick(void);
+
+void wait(uint16_t duration_in);
+
+void callback_colour_finished(void);
 
 // 
 enum colour_state get_state(void);

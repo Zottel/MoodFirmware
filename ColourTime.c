@@ -7,7 +7,7 @@
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
 
-#include "Colour.h"
+#include "ColourTime.h"
 
 // Taken from http://www.mikrocontroller.net/articles/LED-Fading
 const uint16_t pwmtable_16[256] PROGMEM =
@@ -76,20 +76,32 @@ void colour_init() {
   // Initial colour setting
   hardware_rgb();
 
-  state = OFF;
+  if(state == OFF)
+	  state = IDLE;
 }
 
 ISR (TIMER1_OVF_vect) {
 	tick();
 }
 
+void __attribute__ ((weak)) callback_colour_finished(void) {}
+
 // Call once every 8 ms - circa
 void tick() {
 	switch(state) {
 		case OFF:
-		case IDLE_RGB:
-		case IDLE_HSV:
+		case IDLE:
 			return;
+
+		case WAIT:
+			duration_done += 4;
+			if(duration_done > duration)
+			{
+				state = IDLE;
+				callback_colour_finished();
+			}
+			break;
+
 
 		case FADE_RGB:
 			duration_done += 4;
@@ -98,7 +110,9 @@ void tick() {
 				// Get rid of rounding errors
 				rgb_current = rgb_fade_to;
 
-				state = IDLE_RGB;
+				state = IDLE;
+
+				callback_colour_finished();
 			} else {
 				rgb_current.red = (int32_t) rgb_fade_from.red +
 				                            ((((int32_t) rgb_fade_to.red -
@@ -132,8 +146,19 @@ enum colour_state get_state() {
 	return state;
 }
 
+void wait(uint16_t duration_in) {
+	// Prevent duration overflow
+	if(duration_in > (0xffff - 8))
+		duration_in = 0xffff - 8;
+
+	duration = duration_in;
+	duration_done = 0;
+
+	state = WAIT;
+}
+
 void set_rgb(struct rgb_colour to) {
-	state = IDLE_RGB;
+	state = IDLE;
 
 	rgb_current = to;
 
