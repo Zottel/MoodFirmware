@@ -134,7 +134,8 @@ include $(LUFA_PATH)/LUFA/makefile
 # List C source files here. (C dependencies are automatically generated.)
 SRC = $(TARGET).c                                               \
 	  Descriptors.c                                               \
-	  Colour.c                                                    \
+	  ColourTime.c                                                \
+	  Program.c                                                   \
 	  $(LUFA_SRC_USB)                                             \
 	  $(LUFA_SRC_USBCLASS)
 

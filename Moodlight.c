@@ -35,7 +35,8 @@
  */
 
 #include "Moodlight.h"
-#include "Colour.h"
+#include "ColourTime.h"
+#include "Program.h"
 
 /** Buffer to hold the previously generated HID report, for comparison purposes inside the HID class driver. */
 static uint8_t PrevHIDReportBuffer[GENERIC_REPORT_SIZE];
@@ -79,7 +80,8 @@ int main(void)
 
 	LEDs_SetAllLEDs(LEDMASK_USB_NOTREADY);
 
-    colour_init();
+  colour_init();
+  program_init();
 
 	sei();
 
