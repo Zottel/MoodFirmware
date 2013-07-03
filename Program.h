@@ -23,6 +23,7 @@ enum program_opcode {
 	OP_HALT = 0x00,
 	OP_SET_RGB = 0x10,
 	OP_SET_HSV = 0x11,
+	// TODO: Blink?
 	OP_FADE_RGB = 0x20,
 	OP_FADE_HSV = 0x21,
 	OP_WAIT = 0x30,
@@ -31,7 +32,7 @@ enum program_opcode {
 	OP_GOTO_RAM = 0x82
 };
 
-void execute(uint8_t *code, unsigned int len);
+void program_execute(uint8_t *program, unsigned int size);
 void program_step(void);
 
 #endif /* PROGRAM_H */

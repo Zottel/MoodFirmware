@@ -188,24 +188,15 @@ void CALLBACK_HID_Device_ProcessHIDReport(USB_ClassInfo_HID_Device_t* const HIDI
                                           const void* ReportData,
                                           const uint16_t ReportSize)
 {
-    HIDReportEcho.ReportID   = ReportID;
-    HIDReportEcho.ReportSize = ReportSize;
-    memcpy(HIDReportEcho.ReportData, ReportData, ReportSize);
+  HIDReportEcho.ReportID   = ReportID;
+  HIDReportEcho.ReportSize = ReportSize;
 
-    switch(HIDReportEcho.ReportData[0]) {
-        case 0:
-            if(ReportSize < 4) return;
-            set_rgb((struct rgb_colour){HIDReportEcho.ReportData[1],
-                                        HIDReportEcho.ReportData[2],
-                                        HIDReportEcho.ReportData[3]});
-            break;
-        case 1:
-            if(ReportSize < 6) return;
-            fade_rgb((struct rgb_colour){HIDReportEcho.ReportData[1],
-                                         HIDReportEcho.ReportData[2],
-                                         HIDReportEcho.ReportData[3]},
-                     ((uint16_t) HIDReportEcho.ReportData[4] << 8 |
-                      (uint16_t) HIDReportEcho.ReportData[5]));
-            break;
-    }
+  // TODO: Move disabling of interrupts to here?
+  // Otherwise the memcpy may write to the buffer while it is being executed
+
+  memcpy(HIDReportEcho.ReportData, ReportData, ReportSize);
+
+  //set_rgb((struct rgb_colour) {0x00, *(uint8_t *)ReportData, ReportSize << 4});
+
+  program_execute(HIDReportEcho.ReportData, ReportSize);
 }

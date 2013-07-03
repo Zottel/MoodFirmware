@@ -62,6 +62,7 @@ void colour_init() {
             (1 << COM1C1) | (1 << COM1C0) |
             (1 << WGM11)  | (0 << WGM10); 
 
+  // Overflow at 0xffff
   ICR1 = 0xffff;
 
 	// clock/1 prescaler

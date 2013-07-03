@@ -1,7 +1,9 @@
 #include "ColourTime.h"
 #include "Program.h"
 
+#include <stdbool.h>
 #include <avr/eeprom.h>
+#include <avr/interrupt.h>
 
 enum program_addr_space current_addrspace = ADDR_ROM;
 
@@ -20,7 +22,7 @@ unsigned int rom_size = ROM_SIZE;
 
 
 uint8_t *ram_base;
-unsigned int ram_size;
+unsigned int ram_size = 0;
 
 
 // Begin execution at start of rom
@@ -41,10 +43,37 @@ uint8_t read_byte(void) {
 			// TODO: error
 			return 0x00;
 		}
+
 		return eeprom_read_byte(instruction++);
 	} else {
-		return *instruction++;
+
+		// TODO: sanity check
+		if(instruction < ram_base || instruction >= (ram_base + ram_size)) {
+			// TODO: error
+			return 0x00;
+		}
+
+		return *(instruction++);
 	}
+}
+
+void program_execute(uint8_t *program, unsigned int size) {
+	// Being interrupted here would probably lead to inconsistencies
+	cli();
+
+	ram_base = program;
+	ram_size = size;
+
+	// Set execution to begin of buffer
+	instruction = ram_base;
+
+	current_addrspace = ADDR_RAM;
+
+	// Execute to first blocking operation
+	program_step();
+
+	// Re-enable interrupts
+	sei();
 }
 
 void program_step(void) {
@@ -78,8 +107,7 @@ void program_step(void) {
 			colour_rgb.red = read_byte();
 			colour_rgb.green = read_byte();
 			colour_rgb.blue = read_byte();
-			duration |= (read_byte() << 8);
-			duration |= read_byte();
+			duration |= (read_byte() << 8) | read_byte();
 			fade_rgb(colour_rgb, duration);
 			break;
 
@@ -87,20 +115,21 @@ void program_step(void) {
 			colour_hsv.hue = read_byte();
 			colour_hsv.saturation = read_byte();
 			colour_hsv.value = read_byte();
-			duration |= (read_byte() << 8);
-			duration |= read_byte();
+			duration |= (read_byte() << 8) | read_byte();
 			//fade_hsv(colour_hsv, duration);
 			break;
 
 		case OP_WAIT:
-			duration |= (read_byte() << 8);
-			duration |= read_byte();
+			duration |= (read_byte() << 8) | read_byte();
 			wait(duration);
 			break;
 
+		case OP_GOTO_ROM:
+			current_addrspace = ADDR_ROM;
+
 		case OP_GOTO:
-			duration |= (read_byte() << 8);
-			duration |= read_byte();
+			duration |= (read_byte() << 8) | read_byte();
+
 			if(current_addrspace == ADDR_ROM) {
 				instruction = rom + duration;
 			} else {
