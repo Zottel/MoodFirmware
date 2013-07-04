@@ -98,7 +98,7 @@ void program_step(void) {
 			colour_hsv.hue = read_byte();
 			colour_hsv.saturation = read_byte();
 			colour_hsv.value = read_byte();
-			set_rgb(colour_rgb);
+			set_hsv(colour_hsv);
 			// immediatly execute next step - since 
 			program_step();
 			break;
@@ -116,7 +116,7 @@ void program_step(void) {
 			colour_hsv.saturation = read_byte();
 			colour_hsv.value = read_byte();
 			duration |= (read_byte() << 8) | read_byte();
-			//fade_hsv(colour_hsv, duration);
+			fade_hsv(colour_hsv, duration);
 			break;
 
 		case OP_WAIT:

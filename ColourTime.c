@@ -36,10 +36,14 @@ const uint16_t pwmtable_16[256] PROGMEM =
 
 // Currently used colour
 struct rgb_colour rgb_current = {0,0,0};
+struct hsv_colour hsv_current = {0,0,0};
 
 // Fading parameters
 struct rgb_colour rgb_fade_to, rgb_fade_from;
+struct hsv_colour hsv_fade_to, hsv_fade_from = {0,0,0};
 uint16_t duration, duration_done;
+
+
 
 // State machine
 enum colour_state state = OFF;
@@ -49,6 +53,52 @@ void hardware_rgb(void) {
     OCR1A = ~(pgm_read_word(&pwmtable_16[rgb_current.blue]));
     OCR1B = ~(pgm_read_word(&pwmtable_16[rgb_current.green]));
     OCR1C = ~(pgm_read_word(&pwmtable_16[rgb_current.red]));
+}
+
+// Inverted pwm - without logarithm
+/*void hardware_rgb(void) {
+    OCR1A = ~(rgb_current.blue << 8);
+    OCR1B = ~(rgb_current.green << 8);
+    OCR1C = ~(rgb_current.red << 8);
+}*/
+
+
+// Taken from http://www.mikrocontroller.net/topic/54561 - mostly
+void hardware_hsv() {
+	struct rgb_colour res;
+
+	uint8_t i, f;
+	uint16_t p, q, t;
+
+	if( hsv_current.saturation == 0 ) 
+ 	{	res.red = res.green = res.blue = hsv_current.value;
+	}
+	else
+	{	i=hsv_current.hue/43;
+		f=hsv_current.hue%43;
+		p = (hsv_current.value * (255 - hsv_current.saturation))/256;
+		q = (hsv_current.value * ((10710 - (hsv_current.saturation * f))/42))/256;
+		t = (hsv_current.value * ((10710 - (hsv_current.saturation * (42 - f)))/42))/256;
+
+		switch( i )
+		{	case 0:
+				res.red = hsv_current.value; res.green = t; res.blue = p; break;
+			case 1:
+				res.red = q; res.green = hsv_current.value; res.blue = p; break;
+			case 2:
+				res.red = p; res.green = hsv_current.value; res.blue = t; break;
+			case 3:
+				res.red = p; res.green = q; res.blue = hsv_current.value; break;			
+			case 4:
+				res.red = t; res.green = p; res.blue = hsv_current.value; break;				
+			case 5:
+	 			res.red = hsv_current.value; res.green = p; res.blue = q; break;
+		}
+	}
+
+	rgb_current = res;
+
+	hardware_rgb();
 }
 
 void colour_init() {
@@ -138,6 +188,42 @@ void tick() {
 			hardware_rgb();
 			break;
 
+		case FADE_HSV:
+			duration_done += 4;
+			if(duration_done > duration)
+			{
+				// Get rid of rounding errors
+				hsv_current = hsv_fade_to;
+
+				state = IDLE;
+
+				callback_colour_finished();
+			} else {
+				// TODO: Hue is a circle - have it wrap around properly?
+				// (Overflow is a good thing here)
+				hsv_current.hue = (int32_t) hsv_fade_from.hue +
+				                            ((((int32_t) hsv_fade_to.hue -
+				                              (int32_t) hsv_fade_from.hue)
+				                              * (int32_t) duration_done)
+				                            / (int32_t) duration);
+
+				hsv_current.saturation = (int32_t) hsv_fade_from.saturation +
+				                              ((((int32_t) hsv_fade_to.saturation -
+				                                (int32_t) hsv_fade_from.saturation)
+				                                * (int32_t) duration_done)
+				                              / (int32_t) duration);
+
+				hsv_current.value = (int32_t) hsv_fade_from.value +
+				                             ((((int32_t) hsv_fade_to.value -
+				                               (int32_t) hsv_fade_from.value)
+				                               * (int32_t) duration_done)
+				                             / (int32_t) duration);
+
+			}
+
+			hardware_hsv();
+
+
 		default:
 			break;
 	}
@@ -182,5 +268,22 @@ void fade_rgb(struct rgb_colour to, uint16_t duration_in) {
 }
 
 //To be implemented
-void set_hsv(struct hsv_colour to);
-void fade_hsv(struct hsv_colour to, uint16_t duration);
+void set_hsv(struct hsv_colour to) {
+	state = IDLE;
+	hsv_current = to;
+	hardware_hsv();
+}
+void fade_hsv(struct hsv_colour to, uint16_t duration_in) {
+	state = FADE_HSV;
+
+	// TODO: This is NOT sync'ed with rgb
+	hsv_fade_from = hsv_current;
+	hsv_fade_to = to;
+
+	// Prevent duration overflow
+	if(duration_in > (0xffff - 8))
+		duration_in = 0xffff - 8;
+
+	duration = duration_in;
+	duration_done = 0;
+}
