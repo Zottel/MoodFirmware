@@ -125,7 +125,14 @@ void program_step(void) {
 			break;
 
 		case OP_GOTO_ROM:
+			duration |= (read_byte() << 8) | read_byte();
+
 			current_addrspace = ADDR_ROM;
+
+			instruction = rom + duration;
+
+			program_step();
+			break;
 
 		case OP_GOTO:
 			duration |= (read_byte() << 8) | read_byte();
