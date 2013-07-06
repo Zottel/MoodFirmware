@@ -56,11 +56,11 @@ void hardware_rgb(void) {
 }
 
 // Inverted pwm - without logarithm
-/*void hardware_rgb(void) {
+void hardware_rgb_linear(void) {
     OCR1A = ~(rgb_current.blue << 8);
     OCR1B = ~(rgb_current.green << 8);
     OCR1C = ~(rgb_current.red << 8);
-}*/
+}
 
 
 // Taken from http://www.mikrocontroller.net/topic/54561 - mostly
@@ -98,7 +98,7 @@ void hardware_hsv() {
 
 	rgb_current = res;
 
-	hardware_rgb();
+	hardware_rgb_linear();
 }
 
 void colour_init() {
