@@ -29,6 +29,17 @@ How to use your Moodlight in 7 easy steps
 
 7. Tell your Moodlight to blink for you (see PyMood Project)
 
+TODO
+####
+
+- Check if logarithm table is okay, also whether to use it for HSV or not.
+  HSV hue fading looks better when not using logarithmic PWM.
+
+- Introduce instruction to write eeprom from application
+  
+  Something like "write n bytes following this to address p"
+
+- Move LUFA interfacing code further away from genericHID echo demo
 
 Moodlight Sequence Programming
 ##############################
@@ -40,6 +51,7 @@ The Moodlight uses a simple bytecode format to execute sequences of colour chang
 Initially, execution starts at the beginning of the built-in EEPROM,
 but every HID report sent from connected host devices is immediatly executed
 and may run until the next report arrives.
+
 
 Bytecode Format
 ---------------
