@@ -59,10 +59,10 @@
 		#define GENERIC_IN_EPNUM          1
 
 		/** Size in bytes of the Generic HID reporting endpoint. */
-		#define GENERIC_EPSIZE            8
+		#define GENERIC_EPSIZE            128
 
 		/** Size in bytes of the Generic HID reports (including report ID byte). */
-		#define GENERIC_REPORT_SIZE       8
+		#define GENERIC_REPORT_SIZE       128
 
 	/* Function Prototypes: */
 		uint16_t CALLBACK_USB_GetDescriptor(const uint16_t wValue,
