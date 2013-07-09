@@ -3,7 +3,7 @@ MoodlightUSB Firmware
 =====================
 
 
-How to use your Moodlight in 7 easy steps
+How to use your Moodlight in 8 easy steps
 #########################################
 
 1. Get LUFA library::
@@ -25,9 +25,13 @@ How to use your Moodlight in 7 easy steps
 
      dfu-programmer atmega32u2 flash Moodlight.hex 
 
-6. Reset your Moodlight by pressing the RESET button.
+6. Write initial colour sequence to eeprom::
 
-7. Tell your Moodlight to blink for you (see PyMood Project)
+     dfu-programmer atmega32u2 flash-eeprom Moodlight.eep
+
+7. Reset your Moodlight by pressing the RESET button.
+
+8. Tell your Moodlight to blink for you (see PyMood Project)
 
 TODO
 ####
@@ -46,11 +50,11 @@ Moodlight Sequence Programming
 
 *This description is focused on the lowlevel programming of colour sequences.*
 
-The Moodlight uses a simple bytecode format to execute sequences of colour changes. 
+The Moodlight uses a simple bytecode format to execute sequences of colour changes. The instructions are inspired by the BlinkM_ project.
 
 Initially, execution starts at the beginning of the built-in EEPROM,
 but every HID report sent from connected host devices is immediatly executed
-and may run until the next report arrives.
+and may run until the next report arrives or jump back into EEPROM.
 
 
 Bytecode Format
@@ -80,4 +84,10 @@ Bytecode Format
 +----------------------------+----------+--------------------------------------+
 | 0x81 <t1> <t2>             | Goto ROM | Jump to address in ROM               |
 +----------------------------+----------+--------------------------------------+
+
+
+References
+##########
+
+.. _BlinkM: http://thingm.com/products/blinkm
 
