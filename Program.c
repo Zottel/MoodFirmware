@@ -82,7 +82,7 @@ void program_execute(uint8_t *program, unsigned int size) {
 void program_step(void) {
 	struct rgb_colour colour_rgb;
 	struct hsv_colour colour_hsv;
-	uint16_t duration = 0;
+	uint16_t param = 0;
 
 	switch((enum program_opcode) read_byte()) {
 		case OP_HALT:
@@ -110,43 +110,63 @@ void program_step(void) {
 			colour_rgb.red = read_byte();
 			colour_rgb.green = read_byte();
 			colour_rgb.blue = read_byte();
-			duration |= (read_byte() << 8) | read_byte();
-			fade_rgb(colour_rgb, duration);
+			// Duration
+			param |= (read_byte() << 8) | read_byte();
+			fade_rgb(colour_rgb, param);
 			break;
 
 		case OP_FADE_HSV:
 			colour_hsv.hue = read_byte();
 			colour_hsv.saturation = read_byte();
 			colour_hsv.value = read_byte();
-			duration |= (read_byte() << 8) | read_byte();
-			fade_hsv(colour_hsv, duration);
+			// Duration
+			param |= (read_byte() << 8) | read_byte();
+			fade_hsv(colour_hsv, param);
 			break;
 
 		case OP_WAIT:
-			duration |= (read_byte() << 8) | read_byte();
-			wait(duration);
+			// Duration
+			param |= (read_byte() << 8) | read_byte();
+			wait(param);
 			break;
 
 		case OP_GOTO_ROM:
-			duration |= (read_byte() << 8) | read_byte();
+			// Target offset
+			param |= (read_byte() << 8) | read_byte();
 
 			current_addrspace = ADDR_ROM;
 
-			instruction = rom + duration;
+			instruction = rom + param;
 
 			program_step();
 			break;
 
 		case OP_GOTO:
-			duration |= (read_byte() << 8) | read_byte();
+			// Target offset
+			param |= (read_byte() << 8) | read_byte();
 
 			if(current_addrspace == ADDR_ROM) {
-				instruction = rom + duration;
+				instruction = rom + param;
 			} else {
-				instruction = ram_base + duration;
+				instruction = ram_base + param;
 			}
 			program_step();
 			break;
+
+		case OP_WRITE_ROM:
+			// read offset at which to store new values
+			param |= (read_byte() << 8) | read_byte();
+			uint8_t *write_pos = rom + param;
+
+			// Write n bytes
+			for(param = read_byte(); param > 0; param--) {
+				if(write_pos < rom || write_pos >= (rom + rom_size))
+					break;
+				eeprom_write_byte(write_pos++, read_byte());
+			}
+			program_step();
+			break;
+
 		default:
 			break;
 	}

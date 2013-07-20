@@ -29,7 +29,8 @@ enum program_opcode {
 	OP_WAIT = 0x30,
 	OP_GOTO = 0x80,
 	OP_GOTO_ROM = 0x81,
-	OP_GOTO_RAM = 0x82
+	OP_GOTO_RAM = 0x82,
+	OP_WRITE_ROM = 0x91
 };
 
 void program_execute(uint8_t *program, unsigned int size);
