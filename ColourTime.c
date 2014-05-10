@@ -67,37 +67,27 @@ void hardware_rgb_linear(void) {
 void hardware_hsv() {
 	struct rgb_colour res;
 
-	uint8_t i, f;
-	uint16_t p, q, t;
-
-	if( hsv_current.saturation == 0 ) 
- 	{	res.red = res.green = res.blue = hsv_current.value;
-	}
-	else
-	{	i=hsv_current.hue/43;
-		f=hsv_current.hue%43;
-		p = (hsv_current.value * (255 - hsv_current.saturation))/256;
-		q = (hsv_current.value * ((10710 - (hsv_current.saturation * f))/42))/256;
-		t = (hsv_current.value * ((10710 - (hsv_current.saturation * (42 - f)))/42))/256;
-
-		switch( i )
-		{	case 0:
-				res.red = hsv_current.value; res.green = t; res.blue = p; break;
-			case 1:
-				res.red = q; res.green = hsv_current.value; res.blue = p; break;
-			case 2:
-				res.red = p; res.green = hsv_current.value; res.blue = t; break;
-			case 3:
-				res.red = p; res.green = q; res.blue = hsv_current.value; break;			
-			case 4:
-				res.red = t; res.green = p; res.blue = hsv_current.value; break;				
-			case 5:
-	 			res.red = hsv_current.value; res.green = p; res.blue = q; break;
+	if(hsv_current.saturation == 0) {
+		res.red = res.green = res.blue = hsv_current.value;
+	} else {
+		uint16_t hi = (hsv_current.hue * 6) / 256,
+		         f = (((hsv_current.hue * 6) % 256) / 6);
+		uint16_t p = (hsv_current.value * (255 - hsv_current.saturation)) / 256,
+		         q = (hsv_current.value * (((42 * 255) - hsv_current.saturation * f) / 42)) / 256,
+		         t = (hsv_current.value * (((42 * 255) - hsv_current.saturation * (42 - f)) / 42)) / 256;
+		switch(hi) {
+			case 0: res = (struct rgb_colour) {hsv_current.value, t, p}; break;
+			case 1: res = (struct rgb_colour) {q, hsv_current.value, p}; break;
+			case 2: res = (struct rgb_colour) {p, hsv_current.value, t}; break;
+			case 3: res = (struct rgb_colour) {p, q, hsv_current.value}; break;
+			case 4: res = (struct rgb_colour) {t, p, hsv_current.value}; break;
+			case 5: res = (struct rgb_colour) {hsv_current.value, p, q}; break;
 		}
 	}
 
 	rgb_current = res;
 
+	//hardware_rgb();
 	hardware_rgb_linear();
 }
 
@@ -125,7 +115,7 @@ void colour_init() {
   TIMSK1 |= (1 << TOIE1);
 
   // Initial colour setting
-  hardware_rgb();
+  hardware_rgb_linear();
 
   if(state == OFF)
 	  state = IDLE;
@@ -185,7 +175,7 @@ void tick() {
 
 			}
 
-			hardware_rgb();
+			hardware_rgb_linear();
 			break;
 
 		case FADE_HSV:
@@ -249,7 +239,7 @@ void set_rgb(struct rgb_colour to) {
 
 	rgb_current = to;
 
-	hardware_rgb();
+	hardware_rgb_linear();
 }
 
 void fade_rgb(struct rgb_colour to, uint16_t duration_in) {
